@@ -88,7 +88,7 @@ async function startCamera() {
 let lastCall = 0;
 
 async function loop(timestamp) {
-    if (!paused && timestamp - lastCall > 600) {
+    if (!paused && timestamp - lastCall > 100) {
         lastCall = timestamp;
         await recognize();
     }
@@ -100,7 +100,7 @@ async function recognize() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const blob = await new Promise(resolve =>
-        canvas.toBlob(resolve, "image/jpeg", 0.95)
+        canvas.toBlob(resolve, "image/jpeg", 0.70)
     );
 
     const formData = new FormData();
@@ -113,18 +113,15 @@ async function recognize() {
 
     const data = await res.json();
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
     if (data.bbox) {
         const [x1, y1, x2, y2] = data.bbox;
-
         ctx.strokeStyle = "lime";
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
     }
-     else {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-}
+     
 
     if (data.person_id) {
         personBox.innerText = `ID: ${data.person_id}`;
