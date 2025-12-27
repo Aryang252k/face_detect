@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from insightface.app import FaceAnalysis
-from liveness_model import is_live
 
 detector = YOLO("./models/best.pt")
 
@@ -22,6 +21,7 @@ def get_embedding(image):
 
             # 2. Run InsightFace on FULL IMAGE
             faces = embedder.get(image)
+
 
             if not faces:
                 print("InsightFace found no faces")

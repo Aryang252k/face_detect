@@ -31,6 +31,9 @@ async def enroll(
         cv2.IMREAD_COLOR
     )
 
+    if is_live(image):
+        return {"status": "Upload another image"}
+
     embedding = get_embedding(image)
     if embedding is None:
         return {"status": "failed"}
@@ -67,12 +70,14 @@ async def recognize(file: UploadFile = File(...)):
         cv2.IMREAD_COLOR
     )
 
+
     if image is None:
         return {"person_id": None, "confidence": 0.0}
+    
+    if is_live(image):
+        return {"status": "Upload another image"}
 
-    # -------------------------
-    # YOLO FACE DETECTION (FAST)
-    # -------------------------
+   
     results = detector(
         image,
         conf=0.50,
@@ -95,9 +100,7 @@ async def recognize(file: UploadFile = File(...)):
         recognize.last_embed = time.time()
         # =========================
 
-        # -------------------------
-        # INSIGHTFACE (EXPENSIVE)
-        # -------------------------
+       
         faces = embedder.get(image)
         if not faces:
             return {"person_id": None, "confidence": 0.0}
