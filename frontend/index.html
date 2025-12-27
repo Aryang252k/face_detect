@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Face Recognition System</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            overflow: hidden;
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+
+        #personBox {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: lime;
+            font-size: 32px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .controls input, .controls button {
+            margin: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<video id="video" autoplay muted playsinline></video>
+<canvas id="overlay"></canvas>
+
+<div id="personBox"></div>
+
+<div class="controls">
+    <input type="text" id="personId" placeholder="Person ID">
+    <input type="file" id="imageInput">
+    <button onclick="enroll()">Enroll</button>
+    <button onclick="updatePerson()">Update</button>
+</div>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
+const personBox = document.getElementById("personBox");
+
+let paused = false;
+
+// -------------------------
+// START CAMERA
+// -------------------------
+async function startCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 }
+    });
+    video.srcObject = stream;
+
+    video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        requestAnimationFrame(loop);
+    };
+}
+
+
+let lastCall = 0;
+
+async function loop(timestamp) {
+    if (!paused && timestamp - lastCall > 600) {
+        lastCall = timestamp;
+        await recognize();
+    }
+    requestAnimationFrame(loop);
+}
+
+
+async function recognize() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise(resolve =>
+        canvas.toBlob(resolve, "image/jpeg", 0.95)
+    );
+
+    const formData = new FormData();
+    formData.append("file", blob, "frame.jpg");
+
+    const res = await fetch("http://127.0.0.1:8000/recognize", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await res.json();
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (data.bbox) {
+        const [x1, y1, x2, y2] = data.bbox;
+
+        ctx.strokeStyle = "lime";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    }
+     else {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+}
+
+    if (data.person_id) {
+        personBox.innerText = `ID: ${data.person_id}`;
+        personBox.style.display = "block";
+
+        paused = true;
+        setTimeout(() => {
+            personBox.style.display = "none";
+            paused = false;
+        }, 10000);
+    }
+}
+
+// -------------------------
+// ENROLL
+// -------------------------
+async function enroll() {
+    const personId = document.getElementById("personId").value;
+    const file = document.getElementById("imageInput").files[0];
+
+    if (!personId || !file) return alert("Missing data");
+
+    const formData = new FormData();
+    formData.append("person_id", personId);
+    formData.append("file", file);
+
+    const res = await fetch("http://127.0.0.1:8000/enroll", {
+        method: "POST",
+        body: formData
+    });
+
+    alert("Enrolled");
+}
+
+// -------------------------
+// UPDATE
+// -------------------------
+async function updatePerson() {
+    const personId = document.getElementById("personId").value;
+    const file = document.getElementById("imageInput").files[0];
+
+    if (!personId || !file) return alert("Missing data");
+
+    const formData = new FormData();
+    formData.append("person_id", personId);
+    formData.append("file", file);
+
+    const res = await fetch("http://127.0.0.1:8000/update", {
+        method: "POST",
+        body: formData
+    });
+
+    alert("Updated");
+}
+
+startCamera();
+</script>
+
+</body>
+</html>
